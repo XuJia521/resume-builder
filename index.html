@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>简历生成器 | 徐嘉</title>
+<style>
+/* ========== 全局 ========== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --primary: #2c5aa0;
+    --primary-dark: #1a3a6b;
+    --primary-light: #f2f6fc;
+    --border: #c9d6e8;
+    --text: #222;
+    --text-muted: #666;
+    --bg: #f5f5f7;
+    --panel-bg: #fff;
+}
+
+body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+}
+
+/* ========== 布局 ========== */
+.app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    height: 100vh;
+}
+
+.editor {
+    overflow-y: auto;
+    padding: 20px 24px;
+    background: var(--panel-bg);
+    border-right: 1px solid #e0e0e0;
+}
+
+.preview-wrap {
+    overflow-y: auto;
+    padding: 20px;
+    background: var(--bg);
+}
+
+/* ========== 顶部工具栏 ========== */
+.toolbar {
+    position: sticky;
+    top: 0;
+    background: var(--panel-bg);
+    padding: 10px 0 14px;
+    margin-bottom: 14px;
+    border-bottom: 2px solid var(--primary);
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.toolbar h1 {
+    font-size: 16px;
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 7px 14px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--primary-dark);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.btn:hover { background: var(--primary-light); border-color: var(--primary); }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); color: #fff; }
+.btn-danger { color: #c0392b; border-color: #e8c4c0; }
+.btn-danger:hover { background: #fdf2f2; border-color: #c0392b; }
+.btn-small { padding: 4px 10px; font-size: 12px; }
+
+/* ========== 表单 ========== */
+.form-section {
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed #e0e0e0;
+}
+.form-section:last-child { border-bottom: none; }
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    padding-left: 8px;
+    border-left: 3px solid var(--primary);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-row-full { grid-template-columns: 1fr; }
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 6px;
+}
+
+.field label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+textarea {
+    padding: 6px 9px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    background: #fafafa;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+    color: var(--text);
+    width: 100%;
+}
+input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: #fff;
+}
+textarea {
+    resize: vertical;
+    min-height: 60px;
+    line-height: 1.5;
+}
+
+/* ========== 动态条目卡片 ========== */
+.entry-card {
+    background: #fafbfd;
+    border: 1px solid #e8edf5;
+    border-radius: 5px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+}
+
+.entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+}
+
+.entry-label {
+    font-size: 12px;
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+.entry-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.icon-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: all 0.15s;
+}
+.icon-btn:hover { background: var(--primary-light); color: var(--primary); }
+.icon-btn.remove:hover { background: #fdf2f2; color: #c0392b; border-color: #c0392b; }
+
+.bullets-area {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.bullet-row {
+    display: flex;
+    gap: 5px;
+    align-items: flex-start;
+}
+.bullet-row textarea {
+    flex: 1;
+    min-height: 38px;
+    font-size: 12.5px;
+}
+
+.add-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+    background: transparent;
+    color: var(--primary);
+    border: 1px dashed var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    width: 100%;
+    margin-top: 4px;
+}
+.add-btn:hover { background: var(--primary-light); border-style: solid; }
+
+/* ========== 预览区 ========== */
+#preview {
+    background: #fff;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 14mm 14mm;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+    font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+    color: var(--text);
+}
+
+#preview .header {
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+}
+
+#preview .name {
+    font-size: 20pt;
+    font-weight: bold;
+    color: var(--primary-dark);
+    margin-bottom: 3px;
+}
+
+#preview .basic-info {
+    font-size: 9.5pt;
+    color: #555;
+}
+#preview .basic-info span { margin-right: 12px; }
+
+#preview .intent {
+    background: var(--primary-light);
+    padding: 5px 10px;
+    margin-bottom: 8px;
+    font-size: 9.5pt;
+    border-left: 3px solid var(--primary);
+}
+#preview .intent strong { color: var(--primary-dark); }
+
+#preview h2 {
+    font-size: 11.5pt;
+    color: var(--primary-dark);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2px;
+    margin-top: 9px;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#preview .edu-item, #preview .cert-item {
+    margin-bottom: 2px;
+    font-size: 9.5pt;
+}
+#preview .edu-date {
+    display: inline-block;
+    width: 120px;
+    color: var(--text-muted);
+}
+
+#preview .job { margin-bottom: 7px; }
+#preview .job-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 2px;
+}
+#preview .job-title {
+    font-weight: bold;
+    font-size: 10pt;
+    color: var(--primary-dark);
+}
+#preview .job-date {
+    font-size: 9pt;
+    color: var(--text-muted);
+}
+
+#preview ul {
+    margin-left: 16px;
+    margin-top: 2px;
+}
+#preview li {
+    margin-bottom: 2px;
+    font-size: 9.5pt;
+    line-height: 1.45;
+}
+
+#preview .ability-item {
+    margin-bottom: 3px;
+    font-size: 9.5pt;
+}
+#preview .ability-item strong { color: var(--primary-dark); }
+
+#preview .works { font-size: 9.5pt; }
+#preview .works a { color: var(--primary); text-decoration: none; }
+
+/* ========== 打印 ========== */
+@media print {
+    @page {
+        size: A4;
+        margin: 14mm 14mm;
+    }
+    body { background: #fff !important; }
+    body * { visibility: hidden; }
+    #preview, #preview * { visibility: visible; }
+    #preview {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        min-height: 0;
+        padding: 0;
+        margin: 0;
+        box-shadow: none;
+    }
+}
+
+/* ========== 小屏提示 ========== */
+.mobile-tip {
+    display: none;
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; height: auto; }
+    .editor { height: auto; border-right: none; border-bottom: 1px solid #e0e0e0; }
+    .preview-wrap { padding: 10px; }
+    #preview {
+        width: 100%;
+        padding: 12mm 10mm;
+        font-size: 11pt;
+    }
+    .mobile-tip { display: block; }
+}
+
+/* 滚动条样式 */
+.editor::-webkit-scrollbar, .preview-wrap::-webkit-scrollbar {
+    width: 8px;
+}
+.editor::-webkit-scrollbar-thumb, .preview-wrap::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+.editor::-webkit-scrollbar-thumb:hover, .preview-wrap::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+/* 保存状态提示 */
+.save-hint {
+    font-size: 11px;
+    color: #4caf50;
+    margin-left: 6px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.save-hint.visible { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+    <!-- ========== 编辑区 ========== -->
+    <div class="editor">
+        <div class="toolbar">
+            <h1>📝 简历生成器<span class="save-hint" id="saveHint">已自动保存</span></h1>
+            <div class="toolbar-actions">
+                <button class="btn" onclick="exportJSON()">导出数据</button>
+                <button class="btn" onclick="document.getElementById('importFile').click()">导入数据</button>
+                <input type="file" id="importFile" style="display:none" accept=".json" onchange="importJSON(event)">
+                <button class="btn btn-danger" onclick="resetAll()">重置</button>
+                <button class="btn btn-primary" onclick="window.print()">🖨 导出 PDF</button>
+            </div>
+        </div>
+
+        <div class="mobile-tip">
+            ⚠️ 建议在电脑端打开以获得最佳体验。手机端可编辑但预览可能不完整。
+        </div>
+
+        <!-- 基本信息 -->
+        <div class="form-section">
+            <div class="section-header"><div class="section-title">基本信息</div></div>
+            <div class="form-row">
+                <div class="field"><label>姓名</label><input type="text" id="f_name" placeholder="徐嘉"></div>
+                <div class="field"><label>城市</label><input type="text" id="f_city" placeholder="深圳"></div>
+            </div>
+            <div class="form-row-3 form-row">
+                <div class="field"><label>学历</label><input type="text" id="f_degree" placeholder="硕士"></div>
+                <div class="field"><label>年龄</label><input type="text" id="f_age" placeholder="39 岁"></div>
+                <div class="field"><label>性别</label><input type="text" id="f_gender" placeholder="男"></div>
+            </div>
+            <div class="form-row">
+                <div class="field"><label>电话</label><input type="tel" id="f_phone" placeholder="+86 13265890395"></div>
+                <div class="field"><label>邮箱</label><input type="email" id="f_email" placeholder="xujiagd@qq.com"></div>
+            </div>
+        </div>
+
+        <!-- 求职意向 -->
+        <div class="form-section">
+            <div class="section-header"><div class="section-title">求职意向</div></div>
+            <div class="field"><label>一句话意向</label><input type="text" id="f_intent" placeholder="法务 / 合规　|　深圳　|　15–20k　|　月内到岗"></div>
+        </div>
+
+        <!-- 教育经历 -->
+        <div class="form-section">
+            <div class="section-header">
+                <div class="section-title">教育经历</div>
+                <button class="btn btn-small" onclick="addEdu()">+ 添加</button>
+            </div>
+            <div id="edu_list"></div>
+        </div>
+
+        <!-- 专业资质 -->
+        <div class="form-section">
+            <div class="section-header"><div class="section-title">专业资质</div></div>
+            <div class="field">
+                <label>资质列表(用 | 分隔)</label>
+                <input type="text" id="f_certs" placeholder="律师执业证　|　法律职业资格证 A 证　|　大学英语六级">
+            </div>
+        </div>
+
+        <!-- 工作经历 -->
+        <div class="form-section">
+            <div class="section-header">
+                <div class="section-title">工作经历</div>
+                <button class="btn btn-small" onclick="addJob()">+ 添加</button>
+            </div>
+            <div id="job_list"></div>
+        </div>
+
+        <!-- 核心能力 -->
+        <div class="form-section">
+            <div class="section-header">
+                <div class="section-title">核心能力</div>
+                <button class="btn btn-small" onclick="addAbility()">+ 添加</button>
+            </div>
+            <div id="ability_list"></div>
+        </div>
+
+        <!-- 个人作品 -->
+        <div class="form-section">
+            <div class="section-header"><div class="section-title">个人作品</div></div>
+            <div class="field">
+                <label>作品描述(支持 URL 自动识别为链接)</label>
+                <textarea id="f_works" placeholder="法律工具集:https://xujia521.github.io (含诉讼费计算器等,均独立开发并部署)"></textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ========== 预览区 ========== -->
+    <div class="preview-wrap">
+        <div id="preview"></div>
+    </div>
+
+</div>
+
+<script>
+// ========== 数据模型 ==========
+const DEFAULT_DATA = {
+    name: '徐嘉',
+    degree: '硕士',
+    age: '39 岁',
+    gender: '男',
+    city: '深圳',
+    phone: '+86 13265890395',
+    email: 'xujiagd@qq.com',
+    intent: '法务 / 合规　|　深圳　|　15–20k　|　月内到岗',
+    edu: [
+        { date: '2020.9 – 2023.6', content: '广州大学 · 法律 · 硕士' },
+        { date: '2006.9 – 2010.6', content: '天津工业大学 · 信息管理与信息技术 · 本科' }
+    ],
+    certs: '律师执业证　|　法律职业资格证 A 证　|　大学英语六级',
+    jobs: [
+        {
+            title: '卓建(光明)律师事务所　·　执业律师',
+            date: '2025.6 – 至今',
+            bullets: [
+                '独立承办民商事争议案件,覆盖合同纠纷、劳动争议、建设工程、执行程序等多类型,独立完成案件分析、证据整理、法律文书撰写及庭审出庭',
+                '为委托人提供合同审查、法律风险识别、合规意见等非诉讼服务',
+                '熟悉企业常见法律风险点,能够从风险预防与争议解决双重视角提供法律支持'
+            ]
+        },
+        {
+            title: '金桥百信律师事务所　·　实习律师',
+            date: '2024.2 – 2025.6',
+            bullets: [
+                '参与办理民商事诉讼案件 30 余起,涵盖合同、股权、建设工程等领域',
+                '深度参与标的额 2.5 亿元股权纠纷案件,负责事实梳理、证据组织及法律检索,案件取得理想结果',
+                '独立起草、审查商事合同及法律意见书,辅助团队提供企业常年法律顾问服务'
+            ]
+        },
+        {
+            title: '彩讯科技股份有限公司　·　产品经理',
+            date: '2015.5 – 2020.9',
+            bullets: [
+                '负责中国移动"MM 手机助手""139 邮箱"等企业级系统产品的全生命周期管理,对接甲方需求、协调研发资源、推动产品交付',
+                '参与广汽集团"大圣车服"汽车电商平台项目,负责需求分析与产品设计',
+                '深度理解 B 端系统交付中的甲乙方协作机制、项目交付责任划分、系统采购流程——该经验可直接迁移至企业技术合同审查、供应商管理、IT 采购合规等法务场景',
+                '熟悉互联网产品开发全流程,能够与技术、业务团队高效沟通'
+            ]
+        },
+        {
+            title: '上海拉扎斯信息科技有限公司　·　软件测试工程师',
+            date: '2010.8 – 2015.4',
+            bullets: [
+                '负责 Android 系统功能、接口及自动化测试,熟练使用 ADB、UI Automator、Selenium 等工具',
+                '建立了扎实的技术底层理解与系统化问题分析方法'
+            ]
+        }
+    ],
+    abilities: [
+        { label: '复合背景', content: '10 年互联网行业经验(产品 + 测试)+ 法律硕士 + 律师执业,能够同时理解技术产品、业务流程与法律风险,适合科技企业法务、合规及合同管理岗位' },
+        { label: '合同与争议处理', content: '独立承办并处理过合同纠纷、劳动争议、建设工程、股权纠纷等多类型案件,熟悉从预防、审查到争议解决的全流程' },
+        { label: '法务科技能力', content: '自主开发诉讼费计算器、财产保全费计算器、长截图转 PDF 等法律实务工具(GitHub Pages 部署);熟练运用 Claude、Gemini 等 AI 工具辅助合同审查、法律检索、文书起草,显著提升工作效率' },
+        { label: '技术沟通能力', content: '具备开发背景,能够直接阅读技术文档、理解产品逻辑、与研发团队无障碍协作,这是纯法律背景法务难以具备的优势' }
+    ],
+    works: '法律工具集:https://xujia521.github.io (含诉讼费计算器、财产保全费计算器、长截图转 PDF 工具等,均独立开发并部署)'
+};
+
+const STORAGE_KEY = 'resume_builder_data_v1';
+let data = loadData();
+
+function loadData() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+    } catch(e) { console.warn('加载本地数据失败', e); }
+    return JSON.parse(JSON.stringify(DEFAULT_DATA));
+}
+
+let saveTimer = null;
+function saveData() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            const hint = document.getElementById('saveHint');
+            hint.classList.add('visible');
+            setTimeout(() => hint.classList.remove('visible'), 1200);
+        } catch(e) { console.warn('保存失败', e); }
+    }, 300);
+}
+
+// ========== 表单渲染 ==========
+function renderForm() {
+    // 简单字段
+    document.getElementById('f_name').value = data.name || '';
+    document.getElementById('f_degree').value = data.degree || '';
+    document.getElementById('f_age').value = data.age || '';
+    document.getElementById('f_gender').value = data.gender || '';
+    document.getElementById('f_city').value = data.city || '';
+    document.getElementById('f_phone').value = data.phone || '';
+    document.getElementById('f_email').value = data.email || '';
+    document.getElementById('f_intent').value = data.intent || '';
+    document.getElementById('f_certs').value = data.certs || '';
+    document.getElementById('f_works').value = data.works || '';
+
+    renderEdu();
+    renderJobs();
+    renderAbilities();
+}
+
+function renderEdu() {
+    const list = document.getElementById('edu_list');
+    list.innerHTML = '';
+    data.edu.forEach((item, i) => {
+        const card = document.createElement('div');
+        card.className = 'entry-card';
+        card.innerHTML = `
+            <div class="entry-header">
+                <span class="entry-label">教育 ${i + 1}</span>
+                <div class="entry-actions">
+                    ${i > 0 ? `<button class="icon-btn" onclick="moveEdu(${i}, -1)" title="上移">↑</button>` : ''}
+                    ${i < data.edu.length - 1 ? `<button class="icon-btn" onclick="moveEdu(${i}, 1)" title="下移">↓</button>` : ''}
+                    <button class="icon-btn remove" onclick="removeEdu(${i})" title="删除">×</button>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="field"><label>时间</label><input type="text" data-idx="${i}" data-key="date" placeholder="2020.9 – 2023.6" value="${escapeAttr(item.date)}"></div>
+                <div class="field"><label>学校/专业/学位</label><input type="text" data-idx="${i}" data-key="content" placeholder="广州大学 · 法律 · 硕士" value="${escapeAttr(item.content)}"></div>
+            </div>
+        `;
+        card.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('input', e => {
+                const idx = +e.target.dataset.idx;
+                const key = e.target.dataset.key;
+                data.edu[idx][key] = e.target.value;
+                renderPreview();
+                saveData();
+            });
+        });
+        list.appendChild(card);
+    });
+}
+
+function addEdu() {
+    data.edu.push({ date: '', content: '' });
+    renderEdu(); renderPreview(); saveData();
+}
+function removeEdu(i) {
+    if (!confirm('确定删除这条教育经历?')) return;
+    data.edu.splice(i, 1);
+    renderEdu(); renderPreview(); saveData();
+}
+function moveEdu(i, dir) {
+    const j = i + dir;
+    [data.edu[i], data.edu[j]] = [data.edu[j], data.edu[i]];
+    renderEdu(); renderPreview(); saveData();
+}
+
+function renderJobs() {
+    const list = document.getElementById('job_list');
+    list.innerHTML = '';
+    data.jobs.forEach((job, i) => {
+        const card = document.createElement('div');
+        card.className = 'entry-card';
+        const bulletsHTML = job.bullets.map((b, bi) => `
+            <div class="bullet-row">
+                <textarea data-idx="${i}" data-bidx="${bi}" placeholder="工作职责或成果" rows="2">${escapeText(b)}</textarea>
+                <button class="icon-btn remove" onclick="removeBullet(${i}, ${bi})" title="删除">×</button>
+            </div>
+        `).join('');
+
+        card.innerHTML = `
+            <div class="entry-header">
+                <span class="entry-label">工作 ${i + 1}</span>
+                <div class="entry-actions">
+                    ${i > 0 ? `<button class="icon-btn" onclick="moveJob(${i}, -1)" title="上移">↑</button>` : ''}
+                    ${i < data.jobs.length - 1 ? `<button class="icon-btn" onclick="moveJob(${i}, 1)" title="下移">↓</button>` : ''}
+                    <button class="icon-btn remove" onclick="removeJob(${i})" title="删除">×</button>
+                </div>
+            </div>
+            <div class="field"><label>职位标题(公司 · 职位)</label><input type="text" data-idx="${i}" data-key="title" placeholder="XX 公司 · 岗位" value="${escapeAttr(job.title)}"></div>
+            <div class="field"><label>时间段</label><input type="text" data-idx="${i}" data-key="date" placeholder="2025.6 – 至今" value="${escapeAttr(job.date)}"></div>
+            <div class="field">
+                <label>工作内容(每条一行,可多条)</label>
+                <div class="bullets-area">${bulletsHTML}</div>
+                <button class="add-btn" onclick="addBullet(${i})">+ 添加条目</button>
+            </div>
+        `;
+        card.querySelectorAll('input[data-key]').forEach(inp => {
+            inp.addEventListener('input', e => {
+                const idx = +e.target.dataset.idx;
+                data.jobs[idx][e.target.dataset.key] = e.target.value;
+                renderPreview(); saveData();
+            });
+        });
+        card.querySelectorAll('textarea[data-bidx]').forEach(ta => {
+            ta.addEventListener('input', e => {
+                const idx = +e.target.dataset.idx;
+                const bidx = +e.target.dataset.bidx;
+                data.jobs[idx].bullets[bidx] = e.target.value;
+                renderPreview(); saveData();
+            });
+        });
+        list.appendChild(card);
+    });
+}
+
+function addJob() {
+    data.jobs.push({ title: '', date: '', bullets: [''] });
+    renderJobs(); renderPreview(); saveData();
+}
+function removeJob(i) {
+    if (!confirm('确定删除这条工作经历?')) return;
+    data.jobs.splice(i, 1);
+    renderJobs(); renderPreview(); saveData();
+}
+function moveJob(i, dir) {
+    const j = i + dir;
+    [data.jobs[i], data.jobs[j]] = [data.jobs[j], data.jobs[i]];
+    renderJobs(); renderPreview(); saveData();
+}
+function addBullet(i) {
+    data.jobs[i].bullets.push('');
+    renderJobs(); renderPreview(); saveData();
+}
+function removeBullet(i, bi) {
+    data.jobs[i].bullets.splice(bi, 1);
+    renderJobs(); renderPreview(); saveData();
+}
+
+function renderAbilities() {
+    const list = document.getElementById('ability_list');
+    list.innerHTML = '';
+    data.abilities.forEach((ab, i) => {
+        const card = document.createElement('div');
+        card.className = 'entry-card';
+        card.innerHTML = `
+            <div class="entry-header">
+                <span class="entry-label">能力 ${i + 1}</span>
+                <div class="entry-actions">
+                    ${i > 0 ? `<button class="icon-btn" onclick="moveAbility(${i}, -1)" title="上移">↑</button>` : ''}
+                    ${i < data.abilities.length - 1 ? `<button class="icon-btn" onclick="moveAbility(${i}, 1)" title="下移">↓</button>` : ''}
+                    <button class="icon-btn remove" onclick="removeAbility(${i})" title="删除">×</button>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="field"><label>标签</label><input type="text" data-idx="${i}" data-key="label" placeholder="复合背景" value="${escapeAttr(ab.label)}"></div>
+            </div>
+            <div class="field"><label>描述</label><textarea data-idx="${i}" data-key="content" placeholder="详细说明..." rows="3">${escapeText(ab.content)}</textarea></div>
+        `;
+        card.querySelectorAll('input, textarea').forEach(el => {
+            el.addEventListener('input', e => {
+                const idx = +e.target.dataset.idx;
+                data.abilities[idx][e.target.dataset.key] = e.target.value;
+                renderPreview(); saveData();
+            });
+        });
+        list.appendChild(card);
+    });
+}
+
+function addAbility() {
+    data.abilities.push({ label: '', content: '' });
+    renderAbilities(); renderPreview(); saveData();
+}
+function removeAbility(i) {
+    if (!confirm('确定删除这条能力?')) return;
+    data.abilities.splice(i, 1);
+    renderAbilities(); renderPreview(); saveData();
+}
+function moveAbility(i, dir) {
+    const j = i + dir;
+    [data.abilities[i], data.abilities[j]] = [data.abilities[j], data.abilities[i]];
+    renderAbilities(); renderPreview(); saveData();
+}
+
+// ========== 简单字段绑定 ==========
+function bindSimpleFields() {
+    const map = {
+        f_name: 'name', f_degree: 'degree', f_age: 'age', f_gender: 'gender',
+        f_city: 'city', f_phone: 'phone', f_email: 'email',
+        f_intent: 'intent', f_certs: 'certs', f_works: 'works'
+    };
+    Object.entries(map).forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('input', e => {
+            data[key] = e.target.value;
+            renderPreview(); saveData();
+        });
+    });
+}
+
+// ========== HTML 转义 & 自动识别 URL ==========
+function escapeHTML(s) {
+    return (s || '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+function escapeAttr(s) { return escapeHTML(s).replace(/"/g, '&quot;'); }
+function escapeText(s) { return escapeHTML(s); }
+
+function linkify(s) {
+    const escaped = escapeHTML(s);
+    return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>');
+}
+
+// ========== 预览渲染 ==========
+function renderPreview() {
+    const p = document.getElementById('preview');
+
+    const basicParts = [data.degree, data.age, data.gender, data.city, data.phone ? '📱 ' + data.phone : '', data.email ? '✉ ' + data.email : '']
+        .filter(Boolean).map(x => `<span>${escapeHTML(x)}</span>`).join('');
+
+    const eduHTML = data.edu.map(e => `
+        <div class="edu-item"><span class="edu-date">${escapeHTML(e.date)}</span>${escapeHTML(e.content)}</div>
+    `).join('');
+
+    const jobsHTML = data.jobs.map(j => `
+        <div class="job">
+            <div class="job-header">
+                <div class="job-title">${escapeHTML(j.title)}</div>
+                <div class="job-date">${escapeHTML(j.date)}</div>
+            </div>
+            <ul>${j.bullets.filter(b => b.trim()).map(b => `<li>${escapeHTML(b)}</li>`).join('')}</ul>
+        </div>
+    `).join('');
+
+    const abilitiesHTML = data.abilities.map(ab => `
+        <div class="ability-item"><strong>• ${escapeHTML(ab.label)}:</strong>${escapeHTML(ab.content)}</div>
+    `).join('');
+
+    p.innerHTML = `
+        <div class="header">
+            <div class="name">${escapeHTML(data.name)}</div>
+            <div class="basic-info">${basicParts}</div>
+        </div>
+        ${data.intent ? `<div class="intent"><strong>求职意向:</strong>${escapeHTML(data.intent)}</div>` : ''}
+        ${data.edu.length ? `<h2>教育经历</h2>${eduHTML}` : ''}
+        ${data.certs ? `<h2>专业资质</h2><div class="cert-item">${escapeHTML(data.certs)}</div>` : ''}
+        ${data.jobs.length ? `<h2>工作经历</h2>${jobsHTML}` : ''}
+        ${data.abilities.length ? `<h2>核心能力</h2>${abilitiesHTML}` : ''}
+        ${data.works ? `<h2>个人作品</h2><div class="works">${linkify(data.works)}</div>` : ''}
+    `;
+}
+
+// ========== 导入/导出/重置 ==========
+function exportJSON() {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${data.name || 'resume'}_数据_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const imported = JSON.parse(e.target.result);
+            if (!imported.name && !imported.jobs) throw new Error('格式不对');
+            data = imported;
+            // 补全缺失字段
+            ['edu', 'jobs', 'abilities'].forEach(k => { if (!Array.isArray(data[k])) data[k] = []; });
+            renderForm(); renderPreview(); saveData();
+            alert('导入成功!');
+        } catch(err) {
+            alert('导入失败:' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+function resetAll() {
+    if (!confirm('确定重置为默认模板?当前所有内容将丢失(建议先导出数据备份)。')) return;
+    data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    renderForm(); renderPreview(); saveData();
+}
+
+// ========== 启动 ==========
+renderForm();
+renderPreview();
+bindSimpleFields();
+</script>
+
+</body>
+</html>
